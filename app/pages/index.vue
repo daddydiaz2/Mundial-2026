@@ -24,11 +24,12 @@ const totalMatches = computed(() => worldcup.matches.length)
           </div>
         </div>
 
-        <h1 class="text-5xl md:text-7xl font-bold mb-6">
+        <h1 class="text-5xl md:text-7xl font-bold mb-2">
           <span class="gradient-text">FIFA World Cup</span>
           <br />
           <span class="text-white">2026</span>
         </h1>
+        <p class="text-sm text-white/40 mb-6 tracking-widest uppercase">Grupo Genexus</p>
 
         <p class="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
           Predice los resultados, competí con amigos y ganá premios increíbles.

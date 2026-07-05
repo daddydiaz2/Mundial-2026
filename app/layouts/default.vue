@@ -13,7 +13,10 @@ onMounted(() => {
       <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <NuxtLink to="/" class="flex items-center gap-2">
           <span class="text-2xl">🏆</span>
-          <span class="font-bold gradient-text hidden sm:inline">World Cup 2026</span>
+          <div class="hidden sm:block">
+            <span class="font-bold gradient-text">World Cup 2026</span>
+            <span class="block text-[10px] text-white/30 tracking-widest uppercase -mt-1">Grupo Genexus</span>
+          </div>
         </NuxtLink>
 
         <div class="flex items-center gap-4">
