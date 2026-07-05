@@ -40,7 +40,7 @@ const totalMatches = computed(() => worldcup.matches.length)
           <NuxtLink to="/register" class="px-8 py-3 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-dark font-bold text-lg transition-all hover:scale-105 hover:shadow-lg hover:shadow-primary/50 active:scale-95 text-center">
             Unirse Ahora
           </NuxtLink>
-          <NuxtLink to="/predictions" class="px-8 py-3 rounded-xl glass text-white font-semibold text-lg transition-all hover:bg-white/10 active:scale-95 text-center">
+          <NuxtLink to="/partidos" class="px-8 py-3 rounded-xl glass text-white font-semibold text-lg transition-all hover:bg-white/10 active:scale-95 text-center">
             Ver Partidos
           </NuxtLink>
         </div>
