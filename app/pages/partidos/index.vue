@@ -65,6 +65,12 @@ function getTeam(teamId: string) {
   return worldcup.getTeam(teamId)
 }
 
+function getStadiumName(stadiumId: string) {
+  if (!stadiumId) return 'Por definir'
+  const stadium = worldcup.stadiums.find((s: any) => s.id === stadiumId)
+  return stadium ? `${stadium.name_en}, ${stadium.city_en}` : 'Por definir'
+}
+
 function formatDate(dateStr: string) {
   try {
     const [datePart, timePart] = dateStr.split(' ')
@@ -95,12 +101,13 @@ const phaseLabels: Record<string, string> = {
   qf: 'C4', sf: 'Semi', final: 'FINAL', third: '3er'
 }
 
-// Group matches by matchday
+// Group matches by matchday (uses filteredMatches so search works)
 const groupedMatches = computed(() => {
   const groups: { label: string; matches: any[] }[] = []
+  const source = activeTab.value === 'all' ? filteredMatches.value : filteredMatches.value
 
   // Group stage by matchday
-  const groupMatches = worldcup.matches.filter(m => m.type === 'group')
+  const groupMatches = source.filter(m => m.type === 'group')
   const matchdays = [...new Set(groupMatches.map(m => m.matchday))].sort()
   for (const md of matchdays) {
     const matches = groupMatches.filter(m => m.matchday === md)
@@ -112,7 +119,7 @@ const groupedMatches = computed(() => {
   // Knockout by phase
   const knockoutTypes = ['r32', 'r16', 'qf', 'sf', 'final', 'third']
   for (const type of knockoutTypes) {
-    const matches = worldcup.matches.filter(m => m.type === type)
+    const matches = source.filter(m => m.type === type)
     if (matches.length) {
       groups.push({ label: phaseLabels[type] || type, matches })
     }
@@ -316,7 +323,69 @@ const groupedMatches = computed(() => {
       </section>
     </div>
 
-    <!-- Match Detail Dialog -->
-    <MatchDetailDialog v-model:open="showDetail" :match="selectedMatch" />
+    <!-- Match Detail Modal -->
+    <UModal v-model:open="showDetail">
+      <template v-if="selectedMatch">
+        <div class="p-2">
+          <div class="text-center mb-6">
+            <div class="text-xs font-bold uppercase tracking-widest mb-2 text-white/50">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</div>
+            <div class="text-sm text-white/50">{{ formatDate(selectedMatch.local_date) }} · {{ formatHour(selectedMatch.local_date) }}</div>
+          </div>
+
+          <div class="flex items-center justify-center gap-6 mb-8">
+            <div class="flex-1 text-center">
+              <img v-if="getTeam(selectedMatch.home_team_id)" :src="getTeam(selectedMatch.home_team_id)?.flag"
+                class="w-20 h-20 rounded-full mx-auto mb-3 border-2 shadow-lg"
+                :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.home_score) > Number(selectedMatch.away_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+              <h3 class="text-lg font-bold">{{ selectedMatch.home_team_name_en }}</h3>
+            </div>
+
+            <div class="text-center">
+              <template v-if="selectedMatch.finished === 'TRUE'">
+                <div class="text-5xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+              </template>
+              <template v-else-if="selectedMatch.time_elapsed !== 'notstarted'">
+                <div class="text-4xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                <div class="flex items-center justify-center gap-1 mt-1">
+                  <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  <span class="text-xs text-red-400 font-bold">EN VIVO</span>
+                </div>
+              </template>
+              <template v-else>
+                <div class="text-3xl font-bold text-white/30">VS</div>
+              </template>
+            </div>
+
+            <div class="flex-1 text-center">
+              <img v-if="getTeam(selectedMatch.away_team_id)" :src="getTeam(selectedMatch.away_team_id)?.flag"
+                class="w-20 h-20 rounded-full mx-auto mb-3 border-2 shadow-lg"
+                :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.away_score) > Number(selectedMatch.home_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+              <h3 class="text-lg font-bold">{{ selectedMatch.away_team_name_en }}</h3>
+            </div>
+          </div>
+
+          <div class="glass rounded-xl p-4 mb-4">
+            <h4 class="text-sm font-bold text-white/70 mb-3">📋 Detalles</h4>
+            <div class="grid grid-cols-2 gap-y-3 text-sm">
+              <div class="text-white/50">Tipo</div>
+              <div class="font-medium text-right">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</div>
+              <div class="text-white/50">Fecha</div>
+              <div class="font-medium text-right">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</div>
+              <template v-if="selectedMatch.type === 'group'">
+                <div class="text-white/50">Grupo</div>
+                <div class="font-medium text-right">{{ selectedMatch.group }}</div>
+              </template>
+              <div class="text-white/50">Estadio</div>
+              <div class="font-medium text-right">{{ getStadiumName(selectedMatch.stadium_id) }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end">
+          <UButton @click="showDetail = false" color="neutral" variant="outline">Cerrar</UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
