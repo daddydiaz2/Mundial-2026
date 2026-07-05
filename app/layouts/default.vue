@@ -1,10 +1,25 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const { user, isAuthenticated, isAdmin, logout, fetchUser } = useAuth()
 const worldcup = useWorldCupStore()
+const predictionsStore = usePredictionsStore()
 
-onMounted(() => {
+onMounted(async () => {
   fetchUser()
-  worldcup.fetchAll()
+  await worldcup.fetchAll()
+  if (isAuthenticated.value) {
+    predictionsStore.fetchPredictions()
+  }
+})
+
+// Upcoming matches the user hasn't predicted yet
+const pendingPredictions = computed(() => {
+  return worldcup.matches.filter(m =>
+    m.finished === 'FALSE'
+    && m.time_elapsed === 'notstarted'
+    && !predictionsStore.getPrediction(m.id)
+  ).length
 })
 </script>
 
@@ -49,7 +64,16 @@ onMounted(() => {
                 <span class="text-base transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">🎯</span>
                 <span>Predicciones</span>
               </span>
-              <span class="predict-dot absolute top-0.5 right-1 w-2 h-2 rounded-full bg-white ring-2 ring-primary-dark" />
+              <span
+                v-if="pendingPredictions > 0"
+                class="predict-dot absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-red-500 ring-2 ring-primary-dark flex items-center justify-center text-[10px] font-bold text-white z-20"
+              >
+                {{ pendingPredictions > 99 ? '99+' : pendingPredictions }}
+              </span>
+              <span
+                v-else
+                class="predict-dot absolute top-0.5 right-1 w-2 h-2 rounded-full bg-white ring-2 ring-primary-dark"
+              />
             </NuxtLink>
           </Transition>
 
