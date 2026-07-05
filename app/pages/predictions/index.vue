@@ -59,6 +59,11 @@ const thirdMatch = computed(() => worldcup.getMatchesByType('third')[0])
           </div>
         </section>
 
+        <!-- Bracket -->
+        <section class="mb-10">
+          <LiveBracket :matches="worldcup.matches" @predict="openPrediction" />
+        </section>
+
         <!-- Knockout -->
         <section class="mb-10">
           <h2 class="text-2xl font-bold mb-4">Eliminatorias</h2>
