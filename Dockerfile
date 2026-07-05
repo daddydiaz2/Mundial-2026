@@ -10,11 +10,10 @@ RUN pnpm rebuild
 
 COPY . .
 
-RUN pnpm drizzle-kit push
 RUN pnpm build
 
 EXPOSE 3000
 
 RUN mkdir -p /app/data
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["sh", "-c", "pnpm drizzle-kit push && node .output/server/index.mjs"]
