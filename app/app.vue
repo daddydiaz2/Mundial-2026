@@ -5,7 +5,7 @@ useHead({
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
     { name: 'description', content: 'Predice los resultados del Mundial FIFA 2026 y ganá premios' },
     { name: 'theme-color', content: '#fbbf24' },
-    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    { name: 'mobile-web-app-capable', content: 'yes' },
     { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }
   ],
   link: [
