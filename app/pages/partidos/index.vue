@@ -8,6 +8,13 @@ const { isAuthenticated } = useAuth()
 
 const activeTab = ref('all')
 const searchQuery = ref('')
+const selectedMatch = ref<any>(null)
+const showDetail = ref(false)
+
+function openDetail(match: any) {
+  selectedMatch.value = match
+  showDetail.value = true
+}
 
 onMounted(async () => {
   await worldcup.fetchAll()
@@ -182,7 +189,8 @@ const groupedMatches = computed(() => {
             <h2 class="text-lg font-bold mb-4 text-white/80">{{ group.label }}</h2>
             <div class="space-y-3">
               <div v-for="match in group.matches" :key="match.id"
-                class="glass-card py-3 px-4 flex items-center gap-4 transition-all hover:bg-white/5">
+                class="glass-card py-3 px-4 flex items-center gap-4 transition-all hover:bg-white/5 cursor-pointer"
+                @click="openDetail(match)">
 
                 <!-- Phase badge -->
                 <span :class="['px-2 py-1 rounded text-[10px] font-bold uppercase border shrink-0', phaseColors[match.type] || '']">
@@ -244,7 +252,8 @@ const groupedMatches = computed(() => {
         <template v-else>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div v-for="match in filteredMatches" :key="match.id"
-              class="glass-card py-3 px-4 flex items-center gap-4 transition-all hover:bg-white/5">
+              class="glass-card py-3 px-4 flex items-center gap-4 transition-all hover:bg-white/5 cursor-pointer"
+              @click="openDetail(match)">
 
               <span :class="['px-2 py-1 rounded text-[10px] font-bold uppercase border shrink-0', phaseColors[match.type] || '']">
                 {{ phaseLabels[match.type] || match.type }}
@@ -303,5 +312,8 @@ const groupedMatches = computed(() => {
         <LiveBracket :matches="worldcup.matches" />
       </section>
     </div>
+
+    <!-- Match Detail Dialog -->
+    <MatchDetailDialog v-model:open="showDetail" :match="selectedMatch" />
   </div>
 </template>
