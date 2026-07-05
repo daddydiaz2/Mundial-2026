@@ -3,6 +3,8 @@ import { onMounted, ref, computed } from 'vue'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
+useHead({ title: 'Partidos' })
+
 const worldcup = useWorldCupStore()
 const { isAuthenticated } = useAuth()
 
@@ -132,25 +134,28 @@ const groupedMatches = computed(() => {
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto">
-          <div class="glass-card text-center py-4">
-            <div class="text-2xl font-bold text-primary">{{ matchStats.total }}</div>
-            <div class="text-xs text-white/50 uppercase tracking-wider">Partidos</div>
+        <ClientOnly>
+          <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto">
+            <div class="glass-card text-center py-4">
+              <div class="text-2xl font-bold text-primary">{{ matchStats.total }}</div>
+              <div class="text-xs text-white/50 uppercase tracking-wider">Partidos</div>
+            </div>
+            <div class="glass-card text-center py-4">
+              <div class="text-2xl font-bold text-green-400">{{ matchStats.finished }}</div>
+              <div class="text-xs text-white/50 uppercase tracking-wider">Jugados</div>
+            </div>
+            <div class="glass-card text-center py-4">
+              <div class="text-2xl font-bold text-blue-400">{{ matchStats.upcoming }}</div>
+              <div class="text-xs text-white/50 uppercase tracking-wider">Próximos</div>
+            </div>
           </div>
-          <div class="glass-card text-center py-4">
-            <div class="text-2xl font-bold text-green-400">{{ matchStats.finished }}</div>
-            <div class="text-xs text-white/50 uppercase tracking-wider">Jugados</div>
-          </div>
-          <div class="glass-card text-center py-4">
-            <div class="text-2xl font-bold text-blue-400">{{ matchStats.upcoming }}</div>
-            <div class="text-xs text-white/50 uppercase tracking-wider">Próximos</div>
-          </div>
-        </div>
+        </ClientOnly>
       </div>
     </div>
 
     <!-- Content -->
-    <div class="max-w-5xl mx-auto px-4 py-8">
+    <ClientOnly>
+      <div class="max-w-5xl mx-auto px-4 py-8">
       <!-- Filters -->
       <div class="flex flex-col md:flex-row gap-4 mb-8">
         <div class="flex gap-2 overflow-x-auto pb-2">
@@ -312,6 +317,7 @@ const groupedMatches = computed(() => {
         <LiveBracket :matches="worldcup.matches" />
       </section>
     </div>
+    </ClientOnly>
 
     <!-- Match Detail Dialog -->
     <MatchDetailDialog v-model:open="showDetail" :match="selectedMatch" />

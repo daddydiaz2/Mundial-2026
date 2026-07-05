@@ -11,7 +11,12 @@ const leaderboard = computed(() => (data.value as any)?.leaderboard || [])
       <h1 class="text-4xl font-bold gradient-text mb-2">Clasificación</h1>
       <p class="text-white/60 mb-8">Los mejores predictores del Mundial 2026</p>
 
-      <LeaderboardTable :users="leaderboard" :current-user-id="user?.id" />
+      <ClientOnly>
+        <LeaderboardTable :users="leaderboard" :current-user-id="user?.id" />
+        <template #fallback>
+          <div class="text-center py-12 text-white/40">Cargando clasificación...</div>
+        </template>
+      </ClientOnly>
     </div>
   </div>
 </template>
