@@ -11,29 +11,15 @@ const { isAuthenticated } = useAuth()
 const activeTab = ref('all')
 const searchQuery = ref('')
 const selectedMatch = ref<any>(null)
-const detailSection = ref<HTMLElement | null>(null)
-const showScrollTop = ref(false)
+const showDrawer = ref(false)
 
 function openDetail(match: any) {
   selectedMatch.value = match
-  nextTick(() => {
-    detailSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  })
-}
-
-function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  showDrawer.value = true
 }
 
 onMounted(async () => {
   await worldcup.fetchAll()
-  window.addEventListener('scroll', () => {
-    showScrollTop.value = window.scrollY > 400
-  })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', () => {})
 })
 
 const tabs = [
@@ -100,6 +86,46 @@ function parseScorers(scorersStr: string) {
     return []
   }
 }
+
+// Parse scorers string into array of {name, minute} objects
+function parseScorersScored(scorersStr: string) {
+  const raw = parseScorers(scorersStr)
+  return raw.map((s: string) => {
+    const match = s.match(/^(.+?)\s+(\d+)'$/)
+    if (match) return { name: match[1].trim(), minute: match[2] }
+    return { name: s, minute: '?' }
+  })
+}
+
+// Build timeline from goal scorers
+function getTimeline(match: any) {
+  const events: { minute: string; icon: string; text: string; team: string; teamName: string }[] = []
+  const homeScorers = parseScorersScored(match.home_scorers)
+  const awayScorers = parseScorersScored(match.away_scorers)
+  homeScorers.forEach(s => events.push({ minute: s.minute, icon: '⚽', text: `${s.name}`, team: 'home', teamName: match.home_team_name_en }))
+  awayScorers.forEach(s => events.push({ minute: s.minute, icon: '⚽', text: `${s.name}`, team: 'away', teamName: match.away_team_name_en }))
+  return events.sort((a, b) => Number(a.minute) - Number(b.minute))
+}
+
+// Top scorers across all finished matches
+const topScorers = computed(() => {
+  const goalCount: Record<string, { name: string; team: string; goals: number }> = {}
+  const finished = worldcup.matches.filter(m => m.finished === 'TRUE')
+  for (const match of finished) {
+    const home = parseScorersScored(match.home_scorers)
+    const away = parseScorersScored(match.away_scorers)
+    for (const s of [...home, ...away]) {
+      if (!goalCount[s.name]) {
+        goalCount[s.name] = { name: s.name, team: '', goals: 0 }
+      }
+      goalCount[s.name].goals++
+      if (!goalCount[s.name].team) {
+        goalCount[s.name].team = home.includes(s) ? match.home_team_name_en : match.away_team_name_en
+      }
+    }
+  }
+  return Object.values(goalCount).sort((a, b) => b.goals - a.goals)
+})
 
 function formatDate(dateStr: string) {
   try {
@@ -352,15 +378,191 @@ const groupedMatches = computed(() => {
         <LiveBracket :matches="worldcup.matches" />
       </section>
 
-      <!-- Match Detail Section -->
-      <section ref="detailSection" v-if="selectedMatch" class="mt-12 scroll-mt-20">
-        <div class="glass-card relative overflow-hidden">
-          <div class="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl"></div>
+      <!-- Top Scorers Section -->
+      <section v-if="topScorers.length" class="mt-12">
+        <div class="glass-card">
+          <h2 class="text-2xl font-bold gradient-text mb-6 text-center">⚽ Goleadores del Mundial</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div v-for="(player, i) in topScorers.slice(0, 15)" :key="player.name"
+              class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-all">
+              <span class="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold text-dark shrink-0">{{ i + 1 }}</span>
+              <div class="flex-1">
+                <div class="font-medium text-sm">{{ player.name }}</div>
+                <div class="text-xs text-white/40">{{ player.team }}</div>
+              </div>
+              <div class="text-2xl font-black text-primary">{{ player.goals }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
 
-          <!-- Close button -->
-          <button @click="selectedMatch = null" class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
-            <span class="text-white/60 hover:text-white">✕</span>
-          </button>
+    <!-- Match Detail Drawer -->
+    <ClientOnly>
+      <UDrawer v-model:open="showDrawer" :ui="{ width: 'max-w-lg' }">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
+              :class="selectedMatch ? (phaseColors[selectedMatch.type] || '') : ''">
+              {{ selectedMatch ? (phaseLabels[selectedMatch.type] || selectedMatch.type) : '' }}
+            </div>
+            <UButton @click="showDrawer = false" color="neutral" variant="ghost" icon="i-lucide-x" size="sm" />
+          </div>
+        </template>
+
+        <template v-if="selectedMatch">
+          <div class="space-y-6">
+            <!-- Teams & Score -->
+            <div class="flex items-center justify-center gap-6">
+              <div class="flex-1 text-center">
+                <img v-if="getTeam(selectedMatch.home_team_id)" :src="getTeam(selectedMatch.home_team_id)?.flag"
+                  class="w-16 h-16 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.home_score) > Number(selectedMatch.away_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+                <h3 class="font-bold text-sm">{{ selectedMatch.home_team_name_en }}</h3>
+                <p class="text-xs text-white/40">{{ getTeam(selectedMatch.home_team_id)?.fifa_code }}</p>
+              </div>
+
+              <div class="text-center shrink-0">
+                <template v-if="selectedMatch.finished === 'TRUE'">
+                  <div class="text-4xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <p class="text-[10px] text-white/40 mt-1">FINAL</p>
+                </template>
+                <template v-else-if="selectedMatch.time_elapsed !== 'notstarted'">
+                  <div class="text-3xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <div class="flex items-center justify-center gap-1 mt-1">
+                    <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                    <span class="text-[10px] text-red-400 font-bold">{{ selectedMatch.time_elapsed }}'</span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="text-2xl font-bold text-white/30">VS</div>
+                  <p class="text-[10px] text-white/30 mt-1">{{ formatDate(selectedMatch.local_date) }}</p>
+                </template>
+              </div>
+
+              <div class="flex-1 text-center">
+                <img v-if="getTeam(selectedMatch.away_team_id)" :src="getTeam(selectedMatch.away_team_id)?.flag"
+                  class="w-16 h-16 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.away_score) > Number(selectedMatch.home_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+                <h3 class="font-bold text-sm">{{ selectedMatch.away_team_name_en }}</h3>
+                <p class="text-xs text-white/40">{{ getTeam(selectedMatch.away_team_id)?.fifa_code }}</p>
+              </div>
+            </div>
+
+            <!-- Match info row -->
+            <div class="flex items-center justify-center gap-4 text-xs text-white/50">
+              <span>{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</span>
+              <span>·</span>
+              <span>{{ selectedMatch.type === 'group' ? `Grupo ${selectedMatch.group}` : '' }}</span>
+            </div>
+
+            <!-- Goal Scorers -->
+            <div v-if="selectedMatch.finished === 'TRUE'">
+              <h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+                <span>⚽</span> Goles
+                <span class="text-xs font-normal text-white/40">({{ parseScorers(selectedMatch.home_scorers).length + parseScorers(selectedMatch.away_scorers).length }})</span>
+              </h4>
+
+              <div v-if="parseScorers(selectedMatch.home_scorers).length || parseScorers(selectedMatch.away_scorers).length" class="space-y-2">
+                <div v-for="scorer in parseScorersScored(selectedMatch.home_scorers)" :key="scorer.name + scorer.minute"
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg bg-green-500/10">
+                  <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-sm">⚽</div>
+                  <div class="flex-1">
+                    <div class="text-sm font-medium">{{ scorer.name }}</div>
+                    <div class="text-xs text-white/40">{{ selectedMatch.home_team_name_en }}</div>
+                  </div>
+                  <span class="text-sm font-mono text-green-400 font-bold">{{ scorer.minute }}'</span>
+                </div>
+                <div v-for="scorer in parseScorersScored(selectedMatch.away_scorers)" :key="scorer.name + scorer.minute"
+                  class="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-500/10">
+                  <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm">⚽</div>
+                  <div class="flex-1">
+                    <div class="text-sm font-medium">{{ scorer.name }}</div>
+                    <div class="text-xs text-white/40">{{ selectedMatch.away_team_name_en }}</div>
+                  </div>
+                  <span class="text-sm font-mono text-blue-400 font-bold">{{ scorer.minute }}'</span>
+                </div>
+              </div>
+              <div v-else class="text-sm text-white/40 text-center py-4 glass rounded-xl">
+                Sin goles en este partido
+              </div>
+            </div>
+
+            <!-- Timeline (goals in chronological order) -->
+            <div v-if="selectedMatch.finished === 'TRUE' && getTimeline(selectedMatch).length" class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold mb-4 flex items-center gap-2">
+                <span>⏱️</span> Línea de Tiempo
+              </h4>
+              <div class="relative">
+                <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-white/10"></div>
+                <div v-for="(event, i) in getTimeline(selectedMatch)" :key="i" class="flex items-start gap-4 pb-4 relative">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 z-10 text-sm"
+                    :class="event.team === 'home' ? 'bg-green-500/20' : 'bg-blue-500/20'">
+                    {{ event.icon }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium">{{ event.text }}</div>
+                    <div class="text-xs text-white/40">{{ event.teamName }}</div>
+                  </div>
+                  <span class="text-xs font-mono text-white/50 shrink-0">{{ event.minute }}'</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Match Stats -->
+            <div class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+                <span>📊</span> Datos del Partido
+              </h4>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between py-1.5 border-b border-white/5">
+                  <span class="text-white/50">Estadio</span>
+                  <span class="font-medium text-right max-w-[60%]">{{ getStadiumName(selectedMatch.stadium_id) }}</span>
+                </div>
+                <div v-if="getStadiumCapacity(selectedMatch.stadium_id)" class="flex justify-between py-1.5 border-b border-white/5">
+                  <span class="text-white/50">Capacidad</span>
+                  <span class="font-medium">{{ getStadiumCapacity(selectedMatch.stadium_id) }}</span>
+                </div>
+                <div v-if="selectedMatch.type === 'group'" class="flex justify-between py-1.5 border-b border-white/5">
+                  <span class="text-white/50">Grupo</span>
+                  <span class="font-medium">{{ selectedMatch.group }}</span>
+                </div>
+                <div v-if="selectedMatch.matchday" class="flex justify-between py-1.5 border-b border-white/5">
+                  <span class="text-white/50">Jornada</span>
+                  <span class="font-medium">{{ selectedMatch.matchday }}</span>
+                </div>
+                <div class="flex justify-between py-1.5 border-b border-white/5">
+                  <span class="text-white/50">Fecha</span>
+                  <span class="font-medium">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</span>
+                </div>
+                <div class="flex justify-between py-1.5">
+                  <span class="text-white/50">Estado</span>
+                  <span class="font-medium" :class="selectedMatch.finished === 'TRUE' ? 'text-green-400' : 'text-yellow-400'">
+                    {{ selectedMatch.finished === 'TRUE' ? 'Finalizado' : selectedMatch.time_elapsed !== 'notstarted' ? 'En vivo' : 'Programado' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Streaming -->
+            <div v-if="selectedMatch.time_elapsed === 'notstarted' && selectedMatch.finished !== 'TRUE'" class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold mb-3 flex items-center gap-2">
+                <span>📺</span> Transmisión
+              </h4>
+              <a href="https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026"
+                target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/30 transition-all group">
+                <span class="text-xl">🌍</span>
+                <span class="flex-1 font-medium group-hover:text-primary">Ver en FIFA+</span>
+                <span class="text-white/30 group-hover:text-primary">→</span>
+              </a>
+            </div>
+          </div>
+        </template>
+      </UDrawer>
+    </ClientOnly>
+  </div>
+</template>
 
           <div class="relative">
             <!-- Header -->
