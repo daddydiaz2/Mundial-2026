@@ -19,3 +19,4 @@ export function useDb() {
 }
 
 export { sql, eq, and, or, desc, asc, gt, lt, gte, lte, inArray, count } from 'drizzle-orm'
+export { users, predictions, notifications, achievements } from './schema'
