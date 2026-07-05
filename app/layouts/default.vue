@@ -20,7 +20,8 @@ onMounted(() => {
         </NuxtLink>
 
         <div class="flex items-center gap-4">
-          <NuxtLink to="/partidos" class="text-sm text-white/70 hover:text-white transition-colors">Ver Partidos</NuxtLink>
+          <NuxtLink to="/partidos" class="text-sm text-white/70 hover:text-white transition-colors">Partidos</NuxtLink>
+          <NuxtLink to="/posiciones" class="text-sm text-white/70 hover:text-white transition-colors">Posiciones</NuxtLink>
           <NuxtLink to="/leaderboard" class="text-sm text-white/70 hover:text-white transition-colors">Ranking</NuxtLink>
           <NuxtLink v-if="isAuthenticated" to="/stats" class="text-sm text-white/70 hover:text-white transition-colors">Stats</NuxtLink>
           <NuxtLink v-if="isAdmin" to="/admin" class="text-sm text-red-400 hover:text-red-300 transition-colors">Admin</NuxtLink>
