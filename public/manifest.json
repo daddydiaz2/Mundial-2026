@@ -1,0 +1,17 @@
+{
+  "name": "World Cup 2026 - Predicciones",
+  "short_name": "WC2026",
+  "description": "Predice los resultados del Mundial FIFA 2026",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#fbbf24",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
