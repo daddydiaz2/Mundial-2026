@@ -323,8 +323,9 @@ const groupedMatches = computed(() => {
       </section>
     </div>
 
-    <!-- Match Detail Modal -->
-    <UModal v-model:open="showDetail">
+    <!-- Match Detail Modal (client-only para evitar hydration mismatch con UModal que usa Teleport) -->
+    <ClientOnly>
+      <UModal v-model:open="showDetail">
       <template v-if="selectedMatch">
         <div class="p-2">
           <div class="text-center mb-6">
@@ -387,5 +388,6 @@ const groupedMatches = computed(() => {
         </div>
       </template>
     </UModal>
+    </ClientOnly>
   </div>
 </template>
