@@ -11,15 +11,29 @@ const { isAuthenticated } = useAuth()
 const activeTab = ref('all')
 const searchQuery = ref('')
 const selectedMatch = ref<any>(null)
-const showDetail = ref(false)
+const detailSection = ref<HTMLElement | null>(null)
+const showScrollTop = ref(false)
 
 function openDetail(match: any) {
   selectedMatch.value = match
-  showDetail.value = true
+  nextTick(() => {
+    detailSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(async () => {
   await worldcup.fetchAll()
+  window.addEventListener('scroll', () => {
+    showScrollTop.value = window.scrollY > 400
+  })
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', () => {})
 })
 
 const tabs = [
@@ -337,15 +351,20 @@ const groupedMatches = computed(() => {
       <section v-if="worldcup.matches.length" class="mt-12">
         <LiveBracket :matches="worldcup.matches" />
       </section>
-    </div>
 
-    <!-- Match Detail Modal -->
-    <ClientOnly>
-      <UModal v-model:open="showDetail">
-        <template v-if="selectedMatch">
-          <div class="p-4 space-y-6">
-            <!-- Header: Fase y fecha -->
-            <div class="text-center">
+      <!-- Match Detail Section -->
+      <section ref="detailSection" v-if="selectedMatch" class="mt-12 scroll-mt-20">
+        <div class="glass-card relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl"></div>
+
+          <!-- Close button -->
+          <button @click="selectedMatch = null" class="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all">
+            <span class="text-white/60 hover:text-white">✕</span>
+          </button>
+
+          <div class="relative">
+            <!-- Header -->
+            <div class="text-center mb-6">
               <div class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
                 :class="phaseColors[selectedMatch.type] || ''">
                 {{ phaseLabels[selectedMatch.type] || selectedMatch.type }}
@@ -353,120 +372,125 @@ const groupedMatches = computed(() => {
               <p class="text-sm text-white/50 mt-2">{{ formatDate(selectedMatch.local_date) }} · {{ formatHour(selectedMatch.local_date) }}</p>
             </div>
 
-            <!-- Teams & Score -->
-            <div class="flex items-center justify-center gap-4 md:gap-8">
+            <!-- Teams -->
+            <div class="flex items-center justify-center gap-4 md:gap-10 mb-8">
               <div class="flex-1 text-center">
                 <img v-if="getTeam(selectedMatch.home_team_id)" :src="getTeam(selectedMatch.home_team_id)?.flag"
-                  class="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  class="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-3 border-2 shadow-lg"
                   :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.home_score) > Number(selectedMatch.away_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
-                <h3 class="font-bold text-sm md:text-base">{{ selectedMatch.home_team_name_en }}</h3>
+                <h3 class="font-bold text-lg">{{ selectedMatch.home_team_name_en }}</h3>
                 <p class="text-xs text-white/40">{{ getTeam(selectedMatch.home_team_id)?.fifa_code }}</p>
               </div>
 
               <div class="text-center shrink-0">
                 <template v-if="selectedMatch.finished === 'TRUE'">
-                  <div class="text-4xl md:text-5xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <div class="text-5xl md:text-6xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
                   <p class="text-xs text-white/40 mt-1">Finalizado</p>
                 </template>
                 <template v-else-if="selectedMatch.time_elapsed !== 'notstarted'">
-                  <div class="text-3xl md:text-4xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <div class="text-4xl md:text-5xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
                   <div class="flex items-center justify-center gap-1 mt-1">
                     <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                     <span class="text-xs text-red-400 font-bold">{{ selectedMatch.time_elapsed }}'</span>
                   </div>
                 </template>
                 <template v-else>
-                  <div class="text-2xl md:text-3xl font-bold text-white/30">VS</div>
-                  <p class="text-xs text-white/30 mt-1">Próximo</p>
+                  <div class="text-3xl md:text-4xl font-bold text-white/30">VS</div>
+                  <p class="text-xs text-white/30 mt-1">Próximo partido</p>
                 </template>
               </div>
 
               <div class="flex-1 text-center">
                 <img v-if="getTeam(selectedMatch.away_team_id)" :src="getTeam(selectedMatch.away_team_id)?.flag"
-                  class="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  class="w-20 h-20 md:w-24 md:h-24 rounded-full mx-auto mb-3 border-2 shadow-lg"
                   :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.away_score) > Number(selectedMatch.home_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
-                <h3 class="font-bold text-sm md:text-base">{{ selectedMatch.away_team_name_en }}</h3>
+                <h3 class="font-bold text-lg">{{ selectedMatch.away_team_name_en }}</h3>
                 <p class="text-xs text-white/40">{{ getTeam(selectedMatch.away_team_id)?.fifa_code }}</p>
               </div>
             </div>
 
-            <!-- Goal Scorers -->
-            <div v-if="selectedMatch.finished === 'TRUE' && (selectedMatch.home_scorers !== 'null' || selectedMatch.away_scorers !== 'null')" class="glass rounded-xl p-4">
-              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
-                <span>⚽</span> Goles
-              </h4>
-              <div class="space-y-2">
-                <div v-for="scorer in parseScorers(selectedMatch.home_scorers)" :key="scorer"
-                  class="flex items-center gap-2 text-sm bg-green-500/10 rounded-lg px-3 py-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"></span>
-                  <span class="font-medium">{{ selectedMatch.home_team_name_en }}</span>
-                  <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
-                </div>
-                <div v-for="scorer in parseScorers(selectedMatch.away_scorers)" :key="scorer"
-                  class="flex items-center gap-2 text-sm bg-blue-500/10 rounded-lg px-3 py-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
-                  <span class="font-medium">{{ selectedMatch.away_team_name_en }}</span>
-                  <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Match Info -->
-            <div class="glass rounded-xl p-4">
-              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
-                <span>📋</span> Información del Partido
-              </h4>
-              <div class="divide-y divide-white/5">
-                <div class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Fase</span>
-                  <span class="font-medium">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</span>
-                </div>
-                <div v-if="selectedMatch.type === 'group'" class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Grupo</span>
-                  <span class="font-medium">{{ selectedMatch.group }}</span>
-                </div>
-                <div class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Fecha</span>
-                  <span class="font-medium">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</span>
-                </div>
-                <div v-if="selectedMatch.matchday" class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Jornada</span>
-                  <span class="font-medium">{{ selectedMatch.matchday }}</span>
-                </div>
-                <div class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Estadio</span>
-                  <span class="font-medium text-right max-w-[60%]">{{ getStadiumName(selectedMatch.stadium_id) }}</span>
-                </div>
-                <div v-if="getStadiumCapacity(selectedMatch.stadium_id)" class="flex justify-between py-2 text-sm">
-                  <span class="text-white/50">Capacidad</span>
-                  <span class="font-medium">{{ getStadiumCapacity(selectedMatch.stadium_id) }}</span>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Goal Scorers -->
+              <div v-if="selectedMatch.finished === 'TRUE' && (selectedMatch.home_scorers !== 'null' || selectedMatch.away_scorers !== 'null')" class="glass rounded-xl p-4">
+                <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                  <span>⚽</span> Goles
+                </h4>
+                <div class="space-y-2">
+                  <div v-for="scorer in parseScorers(selectedMatch.home_scorers)" :key="scorer"
+                    class="flex items-center gap-2 text-sm bg-green-500/10 rounded-lg px-3 py-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"></span>
+                    <span class="font-medium">{{ selectedMatch.home_team_name_en }}</span>
+                    <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
+                  </div>
+                  <div v-for="scorer in parseScorers(selectedMatch.away_scorers)" :key="scorer"
+                    class="flex items-center gap-2 text-sm bg-blue-500/10 rounded-lg px-3 py-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
+                    <span class="font-medium">{{ selectedMatch.away_team_name_en }}</span>
+                    <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
+                  </div>
+                  <p v-if="!parseScorers(selectedMatch.home_scorers).length && !parseScorers(selectedMatch.away_scorers).length" class="text-sm text-white/40 text-center py-2">
+                    Sin goles registrados
+                  </p>
                 </div>
               </div>
-            </div>
 
-            <!-- Streaming Links (only for upcoming matches) -->
-            <div v-if="selectedMatch.time_elapsed === 'notstarted' && selectedMatch.finished !== 'TRUE'" class="glass rounded-xl p-4">
-              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
-                <span>📺</span> Dónde verlo
-              </h4>
-              <div class="space-y-2">
+              <!-- Match Info -->
+              <div class="glass rounded-xl p-4">
+                <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                  <span>📋</span> Información
+                </h4>
+                <div class="space-y-2">
+                  <div class="flex justify-between py-1.5 text-sm border-b border-white/5">
+                    <span class="text-white/50">Fase</span>
+                    <span class="font-medium">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</span>
+                  </div>
+                  <div v-if="selectedMatch.type === 'group'" class="flex justify-between py-1.5 text-sm border-b border-white/5">
+                    <span class="text-white/50">Grupo</span>
+                    <span class="font-medium">{{ selectedMatch.group }}</span>
+                  </div>
+                  <div class="flex justify-between py-1.5 text-sm border-b border-white/5">
+                    <span class="text-white/50">Fecha</span>
+                    <span class="font-medium">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</span>
+                  </div>
+                  <div v-if="selectedMatch.matchday" class="flex justify-between py-1.5 text-sm border-b border-white/5">
+                    <span class="text-white/50">Jornada</span>
+                    <span class="font-medium">{{ selectedMatch.matchday }}</span>
+                  </div>
+                  <div class="flex justify-between py-1.5 text-sm border-b border-white/5">
+                    <span class="text-white/50">Estadio</span>
+                    <span class="font-medium text-right max-w-[60%]">{{ getStadiumName(selectedMatch.stadium_id) }}</span>
+                  </div>
+                  <div v-if="getStadiumCapacity(selectedMatch.stadium_id)" class="flex justify-between py-1.5 text-sm">
+                    <span class="text-white/50">Capacidad</span>
+                    <span class="font-medium">{{ getStadiumCapacity(selectedMatch.stadium_id) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Streaming -->
+              <div v-if="selectedMatch.time_elapsed === 'notstarted' && selectedMatch.finished !== 'TRUE'" class="glass rounded-xl p-4 md:col-span-2">
+                <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                  <span>📺</span> Dónde verlo
+                </h4>
                 <a href="https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026"
                   target="_blank" rel="noopener noreferrer"
                   class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/30 transition-all group">
                   <span class="text-xl">🌍</span>
-                  <span class="flex-1 font-medium group-hover:text-primary">FIFA+</span>
+                  <span class="flex-1 font-medium group-hover:text-primary">Ver en FIFA+</span>
                   <span class="text-white/30 group-hover:text-primary">→</span>
                 </a>
               </div>
             </div>
           </div>
-        </template>
-        <template #footer>
-          <div class="flex justify-end">
-            <UButton @click="showDetail = false" color="neutral" variant="outline">Cerrar</UButton>
-          </div>
-        </template>
-      </UModal>
-    </ClientOnly>
+        </div>
+      </section>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button v-if="showScrollTop" @click="scrollToTop"
+      class="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-full bg-gradient-to-r from-primary to-primary-dark text-dark shadow-lg shadow-primary/30 flex items-center justify-center text-xl font-bold transition-all hover:scale-110 active:scale-95">
+      ↑
+    </button>
   </div>
 </template>
