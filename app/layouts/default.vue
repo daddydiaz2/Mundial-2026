@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { user, isAuthenticated, logout } = useAuth()
+const { user, isAuthenticated, isAdmin, logout } = useAuth()
 const worldcup = useWorldCupStore()
 
 onMounted(() => {
@@ -23,6 +23,7 @@ onMounted(() => {
           <NuxtLink to="/predictions" class="text-sm text-white/70 hover:text-white transition-colors">Predicciones</NuxtLink>
           <NuxtLink to="/leaderboard" class="text-sm text-white/70 hover:text-white transition-colors">Ranking</NuxtLink>
           <NuxtLink v-if="isAuthenticated" to="/stats" class="text-sm text-white/70 hover:text-white transition-colors">Stats</NuxtLink>
+          <NuxtLink v-if="isAdmin" to="/admin" class="text-sm text-red-400 hover:text-red-300 transition-colors">Admin</NuxtLink>
 
           <template v-if="isAuthenticated">
             <NotificationBell />
