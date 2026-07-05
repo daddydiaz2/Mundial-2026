@@ -45,10 +45,11 @@ const filteredMatches = computed(() => {
 
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    matches = matches.filter(m =>
-      m.home_team_name_en.toLowerCase().includes(q) ||
-      m.away_team_name_en.toLowerCase().includes(q)
-    )
+    matches = matches.filter(m => {
+      const home = (m.home_team_name_en || '').toLowerCase()
+      const away = (m.away_team_name_en || '').toLowerCase()
+      return home.includes(q) || away.includes(q)
+    })
   }
 
   return matches
