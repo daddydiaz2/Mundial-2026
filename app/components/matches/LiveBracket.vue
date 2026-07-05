@@ -10,15 +10,35 @@ const emit = defineEmits<{ predict: [match: any] }>()
 
 const worldcup = useWorldCupStore()
 
-const r32 = computed(() => props.matches.filter(m => m.type === 'r32'))
-const r16 = computed(() => props.matches.filter(m => m.type === 'r16'))
-const qf = computed(() => props.matches.filter(m => m.type === 'qf'))
-const sf = computed(() => props.matches.filter(m => m.type === 'sf'))
-const finalMatch = computed(() => props.matches.find(m => m.type === 'final'))
-const thirdMatch = computed(() => props.matches.find(m => m.type === 'third'))
+const stages = computed(() => {
+  const order = ['r32', 'r16', 'qf', 'sf', 'final']
+  const result: { type: string; label: string; matches: any[]; color: string }[] = []
+  const labels: Record<string, string> = {
+    r32: 'Ronda de 32', r16: 'Octavos', qf: 'Cuartos',
+    sf: 'Semifinal', final: 'Final', third: '3er Puesto'
+  }
+  const colors: Record<string, string> = {
+    r32: '#3b82f6', r16: '#8b5cf6', qf: '#ec4899',
+    sf: '#f97316', final: '#fbbf24', third: '#6b7280'
+  }
+
+  for (const type of order) {
+    const matches = props.matches.filter(m => m.type === type)
+    if (matches.length) {
+      result.push({ type, label: labels[type], matches, color: colors[type] })
+    }
+  }
+
+  const third = props.matches.find(m => m.type === 'third')
+  if (third) {
+    result.push({ type: 'third', label: labels.third, matches: [third], color: colors.third })
+  }
+
+  return result
+})
 
 const champion = computed(() => {
-  const f = finalMatch.value
+  const f = stages.value.find(s => s.type === 'final')?.matches[0]
   if (f && f.finished === 'TRUE') {
     return Number(f.home_score) > Number(f.away_score)
       ? worldcup.getTeam(f.home_team_id)
@@ -27,16 +47,54 @@ const champion = computed(() => {
   return null
 })
 
+function getTeamName(id: string) {
+  const team = worldcup.getTeam(id)
+  return team ? team.name_en : (id === '0' ? 'TBD' : `Team ${id}`)
+}
+
+function getTeamFlag(id: string) {
+  if (id === '0') return ''
+  const team = worldcup.getTeam(id)
+  return team?.flag || ''
+}
+
+function matchState(match: any) {
+  if (match.finished === 'TRUE') return 'finished'
+  if (match.time_elapsed === 'notstarted') return 'pending'
+  return 'live'
+}
+
+function getScore(match: any, teamId: string) {
+  if (match.finished !== 'TRUE' && match.time_elapsed === 'notstarted') return '-'
+  const score = teamId === match.home_team_id ? match.home_score : match.away_score
+  return score || '0'
+}
+
 function isWinner(match: any, teamId: string) {
   if (match.finished !== 'TRUE') return false
+  if (teamId === '0') return false
   if (teamId === match.home_team_id) return Number(match.home_score) > Number(match.away_score)
   return Number(match.away_score) > Number(match.home_score)
 }
 
 function isLoser(match: any, teamId: string) {
   if (match.finished !== 'TRUE') return false
+  if (teamId === '0') return false
   return !isWinner(match, teamId)
 }
+
+// Draw between SF and Final
+const sfFinalLines = computed(() => {
+  const sfCount = stages.value.find(s => s.type === 'sf')?.matches.length || 0
+  if (!sfCount) return ''
+  const lines: string[] = []
+  for (let i = 0; i < sfCount; i++) {
+    const y1 = i * 120 + 60
+    const y2 = 120
+    lines.push(`M 0 ${y1} L 20 ${y1} L 20 ${y2} L 40 ${y2}`)
+  }
+  return lines.join(' ')
+})
 
 watch(champion, (val) => {
   if (val) triggerConfetti()
@@ -51,163 +109,107 @@ function triggerConfetti() {
     if (Date.now() < end) requestAnimationFrame(frame)
   }())
 }
-
-function getTeamData(teamId: string) {
-  return worldcup.getTeam(teamId)
-}
 </script>
 
 <template>
   <div class="glass-card overflow-hidden">
-    <h2 class="text-2xl font-bold text-center mb-6 gradient-text">Bracket Eliminatorio</h2>
+    <h2 class="text-2xl font-bold text-center mb-6">
+      <span class="gradient-text">Bracket Eliminatorio</span>
+    </h2>
 
-    <div class="overflow-x-auto">
-      <div class="flex gap-8 min-w-max p-4">
-        <!-- R32 -->
-        <div v-if="r32.length" class="flex flex-col gap-3">
-          <h3 class="text-sm font-bold text-white/50 text-center mb-2">Ronda de 32</h3>
-          <div v-for="match in r32" :key="match.id" class="w-48">
-            <div class="glass rounded-lg p-2">
-              <div v-for="teamId in [match.home_team_id, match.away_team_id]" :key="teamId"
-                class="flex items-center gap-2 py-1 px-2 rounded"
-                :class="{
-                  'bg-green-500/20': isWinner(match, teamId),
-                  'line-through opacity-50': isLoser(match, teamId)
+    <div class="overflow-x-auto pb-4">
+      <div class="flex items-stretch gap-6 min-w-max p-4">
+        <template v-for="(stage, si) in stages" :key="stage.type">
+          <!-- Stage Column -->
+          <div class="flex flex-col justify-around" style="min-width:160px">
+            <h3 class="text-xs font-bold text-center mb-3 uppercase tracking-widest"
+              :style="{ color: stage.color }">
+              {{ stage.label }}
+            </h3>
+
+            <div v-for="match in stage.matches" :key="match.id"
+              class="relative mb-3 last:mb-0 cursor-pointer group"
+              @click="emit('predict', match)">
+
+              <div class="relative rounded-xl overflow-hidden transition-all duration-200 group-hover:scale-[1.02]"
+                :style="{
+                  border: `1px solid ${match.finished === 'TRUE' ? '#10b981' : match.time_elapsed !== 'notstarted' ? '#ef444480' : stage.color}40`,
+                  background: match.finished === 'TRUE' ? 'linear-gradient(135deg, rgba(16,185,129,0.1), rgba(16,185,129,0.02))' : 'rgba(255,255,255,0.03)'
                 }">
-                <img v-if="getTeamData(teamId)" :src="getTeamData(teamId)?.flag" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-medium flex-1 truncate">{{ getTeamData(teamId)?.name_en || 'TBD' }}</span>
-                <span v-if="match.finished === 'TRUE'" class="text-xs font-bold">
-                  {{ teamId === match.home_team_id ? match.home_score : match.away_score }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Connector lines R32→R16 -->
-        <div v-if="r32.length && r16.length" class="flex items-center">
-          <svg class="w-8 h-full" viewBox="0 0 32 400">
-            <line v-for="i in Math.min(r32.length, 8)" :key="i"
-              x1="0" :y1="i * 50 - 25" x2="32" :y2="Math.ceil(i / 2) * 100 - 50"
-              stroke="rgba(251,191,36,0.3)" stroke-width="2" />
-          </svg>
-        </div>
+                <!-- Match teams -->
+                <div class="p-2.5 space-y-1.5">
+                  <!-- Home team -->
+                  <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors"
+                    :class="{
+                      'bg-green-500/20': isWinner(match, match.home_team_id),
+                      'bg-red-500/10 line-through decoration-red-500/70 opacity-60': isLoser(match, match.home_team_id)
+                    }">
+                    <img v-if="getTeamFlag(match.home_team_id)" :src="getTeamFlag(match.home_team_id)"
+                      class="w-6 h-6 rounded-full flex-shrink-0 border border-white/10" />
+                    <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-white/10 flex items-center justify-center text-[10px]">?</span>
+                    <span class="text-xs font-medium truncate flex-1">{{ getTeamName(match.home_team_id) }}</span>
+                    <span class="text-sm font-black"
+                      :class="matchState(match) === 'finished' ? 'text-white' : 'text-white/50'">
+                      {{ getScore(match, match.home_team_id) }}
+                    </span>
+                  </div>
 
-        <!-- R16 -->
-        <div v-if="r16.length" class="flex flex-col gap-6">
-          <h3 class="text-sm font-bold text-white/50 text-center mb-2">Octavos</h3>
-          <div v-for="match in r16" :key="match.id" class="w-48">
-            <div class="glass rounded-lg p-2">
-              <div v-for="teamId in [match.home_team_id, match.away_team_id]" :key="teamId"
-                class="flex items-center gap-2 py-1 px-2 rounded"
-                :class="{
-                  'bg-green-500/20': isWinner(match, teamId),
-                  'line-through opacity-50': isLoser(match, teamId)
-                }">
-                <img v-if="getTeamData(teamId)" :src="getTeamData(teamId)?.flag" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-medium flex-1 truncate">{{ getTeamData(teamId)?.name_en || 'TBD' }}</span>
-                <span v-if="match.finished === 'TRUE'" class="text-xs font-bold">
-                  {{ teamId === match.home_team_id ? match.home_score : match.away_score }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+                  <!-- Away team -->
+                  <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors"
+                    :class="{
+                      'bg-green-500/20': isWinner(match, match.away_team_id),
+                      'bg-red-500/10 line-through decoration-red-500/70 opacity-60': isLoser(match, match.away_team_id)
+                    }">
+                    <img v-if="getTeamFlag(match.away_team_id)" :src="getTeamFlag(match.away_team_id)"
+                      class="w-6 h-6 rounded-full flex-shrink-0 border border-white/10" />
+                    <span v-else class="w-6 h-6 rounded-full flex-shrink-0 bg-white/10 flex items-center justify-center text-[10px]">?</span>
+                    <span class="text-xs font-medium truncate flex-1">{{ getTeamName(match.away_team_id) }}</span>
+                    <span class="text-sm font-black"
+                      :class="matchState(match) === 'finished' ? 'text-white' : 'text-white/50'">
+                      {{ getScore(match, match.away_team_id) }}
+                    </span>
+                  </div>
+                </div>
 
-        <!-- Connector lines R16→QF -->
-        <div v-if="r16.length && qf.length" class="flex items-center">
-          <svg class="w-8 h-full" viewBox="0 0 32 400">
-            <line v-for="i in Math.min(r16.length, 8)" :key="i"
-              x1="0" :y1="i * 50 - 25" x2="32" :y2="Math.ceil(i / 2) * 100 - 50"
-              stroke="rgba(251,191,36,0.3)" stroke-width="2" />
-          </svg>
-        </div>
-
-        <!-- QF -->
-        <div v-if="qf.length" class="flex flex-col gap-10">
-          <h3 class="text-sm font-bold text-white/50 text-center mb-2">Cuartos</h3>
-          <div v-for="match in qf" :key="match.id" class="w-48">
-            <div class="glass rounded-lg p-2">
-              <div v-for="teamId in [match.home_team_id, match.away_team_id]" :key="teamId"
-                class="flex items-center gap-2 py-1 px-2 rounded"
-                :class="{
-                  'bg-green-500/20': isWinner(match, teamId),
-                  'line-through opacity-50': isLoser(match, teamId)
-                }">
-                <img v-if="getTeamData(teamId)" :src="getTeamData(teamId)?.flag" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-medium flex-1 truncate">{{ getTeamData(teamId)?.name_en || 'TBD' }}</span>
-                <span v-if="match.finished === 'TRUE'" class="text-xs font-bold">
-                  {{ teamId === match.home_team_id ? match.home_score : match.away_score }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Connector lines QF→SF -->
-        <div v-if="qf.length && sf.length" class="flex items-center">
-          <svg class="w-8 h-full" viewBox="0 0 32 400">
-            <line v-for="i in Math.min(qf.length, 8)" :key="i"
-              x1="0" :y1="i * 50 - 25" x2="32" :y2="Math.ceil(i / 2) * 100 - 50"
-              stroke="rgba(251,191,36,0.3)" stroke-width="2" />
-          </svg>
-        </div>
-
-        <!-- SF -->
-        <div v-if="sf.length" class="flex flex-col gap-20">
-          <h3 class="text-sm font-bold text-white/50 text-center mb-2">Semifinal</h3>
-          <div v-for="match in sf" :key="match.id" class="w-48">
-            <div class="glass rounded-lg p-2">
-              <div v-for="teamId in [match.home_team_id, match.away_team_id]" :key="teamId"
-                class="flex items-center gap-2 py-1 px-2 rounded"
-                :class="{
-                  'bg-green-500/20': isWinner(match, teamId),
-                  'line-through opacity-50': isLoser(match, teamId)
-                }">
-                <img v-if="getTeamData(teamId)" :src="getTeamData(teamId)?.flag" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-medium flex-1 truncate">{{ getTeamData(teamId)?.name_en || 'TBD' }}</span>
-                <span v-if="match.finished === 'TRUE'" class="text-xs font-bold">
-                  {{ teamId === match.home_team_id ? match.home_score : match.away_score }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Connector lines SF→Final -->
-        <div v-if="sf.length && finalMatch" class="flex items-center">
-          <svg class="w-8 h-full" viewBox="0 0 32 400">
-            <line v-for="i in Math.min(sf.length, 8)" :key="i"
-              x1="0" :y1="i * 50 - 25" x2="32" :y2="Math.ceil(i / 2) * 100 - 50"
-              stroke="rgba(251,191,36,0.3)" stroke-width="2" />
-          </svg>
-        </div>
-
-        <!-- Final -->
-        <div v-if="finalMatch" class="flex flex-col items-center">
-          <h3 class="text-sm font-bold text-white/50 text-center mb-2">Final</h3>
-          <div class="w-48">
-            <div class="glass rounded-lg p-2 border-2 border-primary/50">
-              <div v-for="teamId in [finalMatch.home_team_id, finalMatch.away_team_id]" :key="teamId"
-                class="flex items-center gap-2 py-1 px-2 rounded"
-                :class="{
-                  'bg-green-500/20': isWinner(finalMatch, teamId),
-                  'line-through opacity-50': isLoser(finalMatch, teamId)
-                }">
-                <img v-if="getTeamData(teamId)" :src="getTeamData(teamId)?.flag" class="w-5 h-5 rounded-full" />
-                <span class="text-xs font-medium flex-1 truncate">{{ getTeamData(teamId)?.name_en || 'TBD' }}</span>
-                <span v-if="finalMatch.finished === 'TRUE'" class="text-xs font-bold">
-                  {{ teamId === finalMatch.home_team_id ? finalMatch.home_score : finalMatch.away_score }}
-                </span>
+                <!-- Live indicator -->
+                <div v-if="matchState(match) === 'live'"
+                  class="absolute -top-1 -right-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold">
+                  <span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                  EN VIVO
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Champion -->
-          <div v-if="champion" class="mt-6 text-center animate-float">
-            <div class="text-5xl mb-2">🏆</div>
-            <div class="text-xl font-bold gradient-text">{{ champion.name_en }}</div>
-            <div class="text-sm text-white/50">CAMPEÓN</div>
+          <!-- SVG Connector -->
+          <div v-if="si < stages.length - 1" class="flex items-center flex-shrink-0" style="width:32px">
+            <svg width="32" :height="Math.max(stage.matches.length * 80, 40)"
+              :viewBox="`0 0 32 ${Math.max(stage.matches.length * 80, 40)}`">
+              <path
+                v-for="(_, i) in stage.matches.slice(0, Math.floor(stages[si + 1]?.matches?.length || 1) * 2 || 1)"
+                :key="i"
+                :d="`M 0 ${i * 80 + 40} L 32 ${i * 80 + 40}`"
+                :stroke="stage.color + '40'" stroke-width="2" fill="none"
+                stroke-dasharray="4,4" />
+            </svg>
+          </div>
+        </template>
+
+        <!-- Champion -->
+        <div v-if="champion" class="flex flex-col justify-center items-center min-w-[140px]">
+          <div class="text-center animate-float">
+            <div class="text-6xl mb-3">🏆</div>
+            <img v-if="getTeamFlag(champion.id)" :src="getTeamFlag(champion.id)"
+              class="w-16 h-16 rounded-full mx-auto mb-3 border-2 border-primary shadow-lg shadow-primary/30" />
+            <div class="text-lg font-bold gradient-text">{{ champion.name_en }}</div>
+            <div class="text-xs text-white/50 uppercase tracking-widest mt-1">Campeón 2026</div>
+          </div>
+        </div>
+        <div v-else class="flex flex-col justify-center items-center min-w-[140px]">
+          <div class="text-center">
+            <div class="text-5xl mb-3 opacity-30">🏆</div>
+            <div class="text-sm text-white/30">Por definir</div>
           </div>
         </div>
       </div>
@@ -218,6 +220,5 @@ function getTeamData(teamId: string) {
 <style scoped>
 .line-through {
   text-decoration: line-through;
-  text-decoration-color: #ef4444;
 }
 </style>
