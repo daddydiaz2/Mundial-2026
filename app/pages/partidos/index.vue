@@ -71,6 +71,22 @@ function getStadiumName(stadiumId: string) {
   return stadium ? `${stadium.name_en}, ${stadium.city_en}` : 'Por definir'
 }
 
+function getStadiumCapacity(stadiumId: string) {
+  if (!stadiumId) return ''
+  const stadium = worldcup.stadiums.find((s: any) => s.id === stadiumId)
+  return stadium?.capacity ? `${stadium.capacity.toLocaleString()} espectadores` : ''
+}
+
+function parseScorers(scorersStr: string) {
+  if (!scorersStr || scorersStr === 'null') return []
+  try {
+    const cleaned = scorersStr.replace(/["""]/g, '"')
+    return JSON.parse(cleaned)
+  } catch {
+    return []
+  }
+}
+
 function formatDate(dateStr: string) {
   try {
     const [datePart, timePart] = dateStr.split(' ')
@@ -323,71 +339,134 @@ const groupedMatches = computed(() => {
       </section>
     </div>
 
-    <!-- Match Detail Modal (client-only para evitar hydration mismatch con UModal que usa Teleport) -->
+    <!-- Match Detail Modal -->
     <ClientOnly>
       <UModal v-model:open="showDetail">
-      <template v-if="selectedMatch">
-        <div class="p-2">
-          <div class="text-center mb-6">
-            <div class="text-xs font-bold uppercase tracking-widest mb-2 text-white/50">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</div>
-            <div class="text-sm text-white/50">{{ formatDate(selectedMatch.local_date) }} · {{ formatHour(selectedMatch.local_date) }}</div>
-          </div>
-
-          <div class="flex items-center justify-center gap-6 mb-8">
-            <div class="flex-1 text-center">
-              <img v-if="getTeam(selectedMatch.home_team_id)" :src="getTeam(selectedMatch.home_team_id)?.flag"
-                class="w-20 h-20 rounded-full mx-auto mb-3 border-2 shadow-lg"
-                :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.home_score) > Number(selectedMatch.away_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
-              <h3 class="text-lg font-bold">{{ selectedMatch.home_team_name_en }}</h3>
-            </div>
-
+        <template v-if="selectedMatch">
+          <div class="p-4 space-y-6">
+            <!-- Header: Fase y fecha -->
             <div class="text-center">
-              <template v-if="selectedMatch.finished === 'TRUE'">
-                <div class="text-5xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
-              </template>
-              <template v-else-if="selectedMatch.time_elapsed !== 'notstarted'">
-                <div class="text-4xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
-                <div class="flex items-center justify-center gap-1 mt-1">
-                  <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                  <span class="text-xs text-red-400 font-bold">EN VIVO</span>
+              <div class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+                :class="phaseColors[selectedMatch.type] || ''">
+                {{ phaseLabels[selectedMatch.type] || selectedMatch.type }}
+              </div>
+              <p class="text-sm text-white/50 mt-2">{{ formatDate(selectedMatch.local_date) }} · {{ formatHour(selectedMatch.local_date) }}</p>
+            </div>
+
+            <!-- Teams & Score -->
+            <div class="flex items-center justify-center gap-4 md:gap-8">
+              <div class="flex-1 text-center">
+                <img v-if="getTeam(selectedMatch.home_team_id)" :src="getTeam(selectedMatch.home_team_id)?.flag"
+                  class="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.home_score) > Number(selectedMatch.away_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+                <h3 class="font-bold text-sm md:text-base">{{ selectedMatch.home_team_name_en }}</h3>
+                <p class="text-xs text-white/40">{{ getTeam(selectedMatch.home_team_id)?.fifa_code }}</p>
+              </div>
+
+              <div class="text-center shrink-0">
+                <template v-if="selectedMatch.finished === 'TRUE'">
+                  <div class="text-4xl md:text-5xl font-black gradient-text">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <p class="text-xs text-white/40 mt-1">Finalizado</p>
+                </template>
+                <template v-else-if="selectedMatch.time_elapsed !== 'notstarted'">
+                  <div class="text-3xl md:text-4xl font-black text-red-400 animate-pulse">{{ selectedMatch.home_score }} - {{ selectedMatch.away_score }}</div>
+                  <div class="flex items-center justify-center gap-1 mt-1">
+                    <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <span class="text-xs text-red-400 font-bold">{{ selectedMatch.time_elapsed }}'</span>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="text-2xl md:text-3xl font-bold text-white/30">VS</div>
+                  <p class="text-xs text-white/30 mt-1">Próximo</p>
+                </template>
+              </div>
+
+              <div class="flex-1 text-center">
+                <img v-if="getTeam(selectedMatch.away_team_id)" :src="getTeam(selectedMatch.away_team_id)?.flag"
+                  class="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 border-2 shadow-lg"
+                  :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.away_score) > Number(selectedMatch.home_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
+                <h3 class="font-bold text-sm md:text-base">{{ selectedMatch.away_team_name_en }}</h3>
+                <p class="text-xs text-white/40">{{ getTeam(selectedMatch.away_team_id)?.fifa_code }}</p>
+              </div>
+            </div>
+
+            <!-- Goal Scorers -->
+            <div v-if="selectedMatch.finished === 'TRUE' && (selectedMatch.home_scorers !== 'null' || selectedMatch.away_scorers !== 'null')" class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                <span>⚽</span> Goles
+              </h4>
+              <div class="space-y-2">
+                <div v-for="scorer in parseScorers(selectedMatch.home_scorers)" :key="scorer"
+                  class="flex items-center gap-2 text-sm bg-green-500/10 rounded-lg px-3 py-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"></span>
+                  <span class="font-medium">{{ selectedMatch.home_team_name_en }}</span>
+                  <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
                 </div>
-              </template>
-              <template v-else>
-                <div class="text-3xl font-bold text-white/30">VS</div>
-              </template>
+                <div v-for="scorer in parseScorers(selectedMatch.away_scorers)" :key="scorer"
+                  class="flex items-center gap-2 text-sm bg-blue-500/10 rounded-lg px-3 py-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0"></span>
+                  <span class="font-medium">{{ selectedMatch.away_team_name_en }}</span>
+                  <span class="text-white/60 ml-auto font-mono">{{ scorer }}</span>
+                </div>
+              </div>
             </div>
 
-            <div class="flex-1 text-center">
-              <img v-if="getTeam(selectedMatch.away_team_id)" :src="getTeam(selectedMatch.away_team_id)?.flag"
-                class="w-20 h-20 rounded-full mx-auto mb-3 border-2 shadow-lg"
-                :class="selectedMatch.finished === 'TRUE' && Number(selectedMatch.away_score) > Number(selectedMatch.home_score) ? 'border-primary shadow-primary/30' : 'border-white/20'" />
-              <h3 class="text-lg font-bold">{{ selectedMatch.away_team_name_en }}</h3>
+            <!-- Match Info -->
+            <div class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                <span>📋</span> Información del Partido
+              </h4>
+              <div class="divide-y divide-white/5">
+                <div class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Fase</span>
+                  <span class="font-medium">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</span>
+                </div>
+                <div v-if="selectedMatch.type === 'group'" class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Grupo</span>
+                  <span class="font-medium">{{ selectedMatch.group }}</span>
+                </div>
+                <div class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Fecha</span>
+                  <span class="font-medium">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</span>
+                </div>
+                <div v-if="selectedMatch.matchday" class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Jornada</span>
+                  <span class="font-medium">{{ selectedMatch.matchday }}</span>
+                </div>
+                <div class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Estadio</span>
+                  <span class="font-medium text-right max-w-[60%]">{{ getStadiumName(selectedMatch.stadium_id) }}</span>
+                </div>
+                <div v-if="getStadiumCapacity(selectedMatch.stadium_id)" class="flex justify-between py-2 text-sm">
+                  <span class="text-white/50">Capacidad</span>
+                  <span class="font-medium">{{ getStadiumCapacity(selectedMatch.stadium_id) }}</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div class="glass rounded-xl p-4 mb-4">
-            <h4 class="text-sm font-bold text-white/70 mb-3">📋 Detalles</h4>
-            <div class="grid grid-cols-2 gap-y-3 text-sm">
-              <div class="text-white/50">Tipo</div>
-              <div class="font-medium text-right">{{ phaseLabels[selectedMatch.type] || selectedMatch.type }}</div>
-              <div class="text-white/50">Fecha</div>
-              <div class="font-medium text-right">{{ formatDate(selectedMatch.local_date) }} {{ formatHour(selectedMatch.local_date) }}</div>
-              <template v-if="selectedMatch.type === 'group'">
-                <div class="text-white/50">Grupo</div>
-                <div class="font-medium text-right">{{ selectedMatch.group }}</div>
-              </template>
-              <div class="text-white/50">Estadio</div>
-              <div class="font-medium text-right">{{ getStadiumName(selectedMatch.stadium_id) }}</div>
+            <!-- Streaming Links (only for upcoming matches) -->
+            <div v-if="selectedMatch.time_elapsed === 'notstarted' && selectedMatch.finished !== 'TRUE'" class="glass rounded-xl p-4">
+              <h4 class="text-sm font-bold text-white/70 mb-3 flex items-center gap-2">
+                <span>📺</span> Dónde verlo
+              </h4>
+              <div class="space-y-2">
+                <a href="https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026"
+                  target="_blank" rel="noopener noreferrer"
+                  class="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 hover:bg-primary/10 border border-white/10 hover:border-primary/30 transition-all group">
+                  <span class="text-xl">🌍</span>
+                  <span class="flex-1 font-medium group-hover:text-primary">FIFA+</span>
+                  <span class="text-white/30 group-hover:text-primary">→</span>
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-      </template>
-      <template #footer>
-        <div class="flex justify-end">
-          <UButton @click="showDetail = false" color="neutral" variant="outline">Cerrar</UButton>
-        </div>
-      </template>
-    </UModal>
+        </template>
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton @click="showDetail = false" color="neutral" variant="outline">Cerrar</UButton>
+          </div>
+        </template>
+      </UModal>
     </ClientOnly>
   </div>
 </template>
