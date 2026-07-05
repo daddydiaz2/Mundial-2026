@@ -25,6 +25,7 @@ onMounted(() => {
           <NuxtLink v-if="isAuthenticated" to="/stats" class="text-sm text-white/70 hover:text-white transition-colors">Stats</NuxtLink>
 
           <template v-if="isAuthenticated">
+            <NotificationBell />
             <NuxtLink to="/profile" class="text-sm text-white/70 hover:text-white transition-colors">
               {{ user?.username }}
             </NuxtLink>
