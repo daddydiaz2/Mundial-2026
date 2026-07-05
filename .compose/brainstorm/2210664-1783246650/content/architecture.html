@@ -1,0 +1,102 @@
+<h2>Arquitectura del Sistema</h2>
+<p class="subtitle">World Cup 2026 Predictions App — Nuxt 4 + Nuxt UI + SQLite</p>
+
+<div class="section">
+  <h3>Stack Decidido</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="nuxt4" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Nuxt 4 + Nuxt UI v4</h3>
+        <p>Framework + componentes UI listos, Tailwind v4 incluido</p>
+      </div>
+    </div>
+    <div class="option" data-choice="sqlite" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>SQLite + Drizzle ORM</h3>
+        <p>better-sqlite3, WAL mode, migrations con drizzle-kit</p>
+      </div>
+    </div>
+    <div class="option" data-choice="auth" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>@sidebase/nuxt-auth</h3>
+        <p>JWT + cookies httpOnly, session management</p>
+      </div>
+    </div>
+    <div class="option" data-choice="api" onclick="toggleSelect(this)">
+      <div class="letter">D</div>
+      <div class="content">
+        <h3>worldcup26.ir API</h3>
+        <p>Gratis, sin key, 104 partidos, scores en vivo</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Subsistemas</h3>
+  <div class="cards">
+    <div class="card" data-choice="auth-sys" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>1. Autenticación</h3>
+        <p>Registro, login, JWT, sesiones, perfil de usuario</p>
+      </div>
+    </div>
+    <div class="card" data-choice="matches" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>2. Partidos & Predicciones</h3>
+        <p>104 partidos, hacer predicciones, sistema de puntos (3/1/0)</p>
+      </div>
+    </div>
+    <div class="card" data-choice="bracket" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>3. Bracket Eliminatorio</h3>
+        <p>Visualización animada r32→r16→qf→sf→final, tachando perdedores</p>
+      </div>
+    </div>
+    <div class="card" data-choice="leaderboard" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>4. Leaderboard & Rankings</h3>
+        <p>Tabla de posiciones, top jugadores, ranking por acierto</p>
+      </div>
+    </div>
+    <div class="card" data-choice="stats" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>5. Estadísticas & Gráficos</h3>
+        <p>Charts interactivos, precisión, rachas, heat map</p>
+      </div>
+    </div>
+    <div class="card" data-choice="notifications" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>6. Notificaciones Push</h3>
+        <p>Alertas 2h/1h/30min antes, resultados con confetti</p>
+      </div>
+    </div>
+    <div class="card" data-choice="groups" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>7. Tablas de Grupo</h3>
+        <p>12 grupos A-L con standings en tiempo real</p>
+      </div>
+    </div>
+    <div class="card" data-choice="badges" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>8. Logros & Badges</h3>
+        <p>Sistema de gamificación con 8+ logros desbloqueables</p>
+      </div>
+    </div>
+    <div class="card" data-choice="admin" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>9. Panel Admin</h3>
+        <p>Dashboard, gestionar partidos, resultados, usuarios</p>
+      </div>
+    </div>
+    <div class="card" data-choice="pwa" onclick="toggleSelect(this)">
+      <div class="card-body">
+        <h3>10. PWA</h3>
+        <p>Service worker, manifest, instalable en móvil</p>
+      </div>
+    </div>
+  </div>
+</div>
