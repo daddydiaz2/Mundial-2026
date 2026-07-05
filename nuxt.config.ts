@@ -3,8 +3,7 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
-    '@pinia/nuxt',
-    '@sidebase/nuxt-auth'
+    '@pinia/nuxt'
   ],
 
   devtools: {
@@ -18,14 +17,6 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-06-30',
-
-  auth: {
-    origin: process.env.AUTH_ORIGIN || 'http://localhost:3000',
-    session: {
-      enableRefreshOnWindowFocus: true,
-      enableRefreshPeriodically: false
-    }
-  },
 
   runtimeConfig: {
     jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-prod',
