@@ -10,6 +10,7 @@ const showDialog = ref(false)
 const selectedMatch = ref<any>(null)
 const activeTab = ref('all')
 const searchQuery = ref('')
+const showAuthBanner = ref(true)
 
 onMounted(async () => {
   await worldcup.fetchAll()
@@ -132,20 +133,22 @@ const matchStats = computed(() => ({
 
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 py-8">
-      <!-- Auth Banner -->
-      <div v-if="!isAuthenticated" class="glass-card mb-8 border border-primary/30">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 class="text-lg font-bold text-primary">¡Hacé tu primera predicción!</h3>
-            <p class="text-white/60">Registrate o iniciá sesión para predecir resultados y ganar puntos</p>
+      <!-- Auth Banner (dismissible) -->
+      <div v-if="!isAuthenticated && showAuthBanner" class="mb-6">
+        <div class="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">🎯</span>
+            <p class="text-sm text-white/80">
+              <strong class="text-primary">¡Registrate</strong> para hacer predicciones y ganar puntos
+            </p>
           </div>
-          <div class="flex gap-3">
-            <NuxtLink to="/register" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary-dark text-dark font-bold transition-all hover:scale-105">
-              Registrarse
+          <div class="flex items-center gap-2">
+            <NuxtLink to="/register" class="px-4 py-1.5 rounded-lg bg-primary/20 text-primary text-sm font-bold hover:bg-primary/30 transition-all">
+              Unirse
             </NuxtLink>
-            <NuxtLink to="/login" class="px-6 py-2.5 rounded-xl glass text-white font-semibold transition-all hover:bg-white/10">
-              Iniciar Sesión
-            </NuxtLink>
+            <button @click="showAuthBanner = false" class="text-white/40 hover:text-white/60 transition-colors">
+              <span class="text-lg">×</span>
+            </button>
           </div>
         </div>
       </div>
