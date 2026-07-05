@@ -25,3 +25,6 @@ data/
 .env
 .env.*
 !.env.example
+
+# Compose
+.compose/
