@@ -13,4 +13,4 @@ EXPOSE 3000
 
 RUN mkdir -p /app/data
 
-CMD node server/db/migrate.mjs && node .output/server/index.mjs
+CMD ["node", ".output/server/index.mjs"]
