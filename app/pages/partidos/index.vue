@@ -80,9 +80,15 @@ function getStadiumCapacity(stadiumId: string) {
 function parseScorers(scorersStr: string) {
   if (!scorersStr || scorersStr === 'null') return []
   try {
-    const cleaned = scorersStr.replace(/["""]/g, '"')
+    // Replace curly braces with brackets and fancy quotes with regular quotes
+    let cleaned = scorersStr
+      .replace(/^\{/, '[').replace(/\}$/, ']')
+      .replace(/["""]/g, '"')
     return JSON.parse(cleaned)
   } catch {
+    // Fallback: extract quoted strings manually
+    const matches = scorersStr.match(/"([^"]+)"/g)
+    if (matches) return matches.map(m => m.replace(/"/g, ''))
     return []
   }
 }
