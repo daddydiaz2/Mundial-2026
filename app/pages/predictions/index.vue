@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
+import confetti from 'canvas-confetti'
 
 const worldcup = useWorldCupStore()
 const predictionsStore = usePredictionsStore()
@@ -11,6 +12,15 @@ onMounted(async () => {
   await Promise.all([worldcup.fetchAll(), predictionsStore.fetchPredictions()])
 })
 
+function triggerConfetti() {
+  confetti({
+    particleCount: 100,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#fbbf24', '#3b82f6', '#8b5cf6', '#10b981']
+  })
+}
+
 function openPrediction(match: any) {
   selectedMatch.value = match
   showDialog.value = true
@@ -20,9 +30,11 @@ async function submitPrediction(homeScore: number, awayScore: number) {
   if (!selectedMatch.value) return
   try {
     await predictionsStore.makePrediction(selectedMatch.value.id, homeScore, awayScore)
+    triggerConfetti()
   } catch (e: any) {
     if (e.statusCode === 409) {
       await predictionsStore.updatePrediction(selectedMatch.value.id, homeScore, awayScore)
+      triggerConfetti()
     }
   }
 }
